@@ -56,6 +56,14 @@ services:
       - CRON_SCHEDULE=${CRON_SCHEDULE:-*/5 * * * *}
       - RUN_MODE=${RUN_MODE:-cron}
       - IMMEDIATE_RUN=${IMMEDIATE_RUN:-true}
+      # 云端同步配置
+      - CLOUD_SYNC_ENABLED=${CLOUD_SYNC_ENABLED:-false}
+      - CLOUD_PROVIDER=${CLOUD_PROVIDER:-aliyun}
+      - CLOUD_ACCESS_KEY=${CLOUD_ACCESS_KEY:-}
+      - CLOUD_SECRET_KEY=${CLOUD_SECRET_KEY:-}
+      - CLOUD_BUCKET_NAME=${CLOUD_BUCKET_NAME:-}
+      - CLOUD_REGION=${CLOUD_REGION:-}
+      - CLOUD_ENDPOINT=${CLOUD_ENDPOINT:-}
 
   trend-radar-mcp:
     image: wantcat/trendradar-mcp:latest

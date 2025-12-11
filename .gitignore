@@ -1,0 +1,12 @@
+# Environment variables
+.env
+
+# Output data
+output/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# System files
+.DS_Store

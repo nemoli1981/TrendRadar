@@ -18,6 +18,10 @@ from typing import Dict, List, Tuple, Optional, Union
 import pytz
 import requests
 import yaml
+try:
+    import cloud_sync
+except ImportError:
+    cloud_sync = None
 
 
 VERSION = "3.5.0"
@@ -740,8 +744,77 @@ class DataFetcher:
 
 
 # === 数据处理 ===
+def save_titles_to_json(results: Dict, id_to_name: Dict, failed_ids: List) -> str:
+    """保存标题到JSON文件"""
+    file_path = get_output_path("json", f"{format_time_filename()}.json")
+
+    data = {
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "results": {},
+        "failed_ids": failed_ids,
+    }
+
+    for id_value, title_data in results.items():
+        name = id_to_name.get(id_value, id_value)
+        platform_data = {"name": name, "items": []}
+
+        # 按排名排序标题
+        sorted_titles = []
+        for title, info in title_data.items():
+            cleaned_title = clean_title(title)
+            if isinstance(info, dict):
+                ranks = info.get("ranks", [])
+                url = info.get("url", "")
+                mobile_url = info.get("mobileUrl", "")
+            else:
+                ranks = info if isinstance(info, list) else []
+                url = ""
+                mobile_url = ""
+
+            rank = ranks[0] if ranks else 1
+            sorted_titles.append((rank, cleaned_title, url, mobile_url))
+
+        sorted_titles.sort(key=lambda x: x[0])
+
+        for rank, cleaned_title, url, mobile_url in sorted_titles:
+            item = {
+                "rank": rank,
+                "title": cleaned_title,
+                "url": url,
+                "mobileUrl": mobile_url,
+            }
+            platform_data["items"].append(item)
+
+        data["results"][id_value] = platform_data
+
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+    # 尝试同步到云端
+    if cloud_sync:
+        try:
+            # 上传带时间戳的文件
+            filename = Path(file_path).name
+            cloud_sync.upload_to_cloud(file_path, f"news/{filename}")
+            
+            # 上传/更新 latest.json
+            cloud_sync.upload_to_cloud(file_path, "news/latest.json")
+            print("尝试触发云端同步完成")
+        except Exception as e:
+            print(f"云端同步出错: {e}")
+
+    return file_path
+
+
 def save_titles_to_file(results: Dict, id_to_name: Dict, failed_ids: List) -> str:
     """保存标题到文件"""
+    # 同时保存JSON格式数据，供小程序使用
+    try:
+        json_path = save_titles_to_json(results, id_to_name, failed_ids)
+        print(f"JSON数据已保存到: {json_path}")
+    except Exception as e:
+        print(f"保存JSON数据失败: {e}")
+
     file_path = get_output_path("txt", f"{format_time_filename()}.txt")
 
     with open(file_path, "w", encoding="utf-8") as f:

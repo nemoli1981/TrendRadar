@@ -1,0 +1,59 @@
+name: TrendRadar Daily Crawler
+
+on:
+  schedule:
+    # 每天北京时间 8:00, 12:00, 18:00 运行 (UTC 0:00, 4:00, 10:00)
+    # 你可以根据需要修改这里的 cron 表达式
+    - cron: '0 0,4,10 * * *'
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  crawl-and-sync:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        # 确保安装了 oss2 用于云端同步
+        pip install oss2
+        
+    - name: Run TrendRadar
+      env:
+        # 配置信息
+        CONFIG_PATH: config/config.yaml
+        FREQUENCY_WORDS_PATH: config/frequency_words.txt
+        # 启用爬虫和通知
+        ENABLE_CRAWLER: true
+        ENABLE_NOTIFICATION: false # GitHub Action 中通常不需要发通知，除非你需要
+        REPORT_MODE: daily
+        RUN_MODE: once # 只运行一次
+        
+        # 云端同步配置 (Secrets)
+        CLOUD_SYNC_ENABLED: true
+        CLOUD_PROVIDER: aliyun
+        CLOUD_ACCESS_KEY: ${{ secrets.CLOUD_ACCESS_KEY }}
+        CLOUD_SECRET_KEY: ${{ secrets.CLOUD_SECRET_KEY }}
+        CLOUD_BUCKET_NAME: ${{ secrets.CLOUD_BUCKET_NAME }}
+        CLOUD_REGION: ${{ secrets.CLOUD_REGION }}
+        CLOUD_ENDPOINT: ${{ secrets.CLOUD_ENDPOINT }}
+      run: |
+        python main.py
+        
+    # 可选：如果你想把结果也存回 GitHub 仓库（不推荐存大量数据，但适合做备份）
+    # - name: Commit and push if changes
+    #   run: |
+    #     git config --global user.name 'GitHub Action'
+    #     git config --global user.email 'action@github.com'
+    #     git add output/
+    #     git commit -m "Auto update news data" || exit 0
+    #     git push
