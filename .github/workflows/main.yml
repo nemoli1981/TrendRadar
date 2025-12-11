@@ -1,6 +1,9 @@
 name: Manual Test
 
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "master" ]
 
 jobs:
   test:
